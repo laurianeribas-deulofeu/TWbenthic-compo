@@ -1,0 +1,203 @@
+### script - data analysis Ribas Deulofeu et al. ###
+
+library(vegan) # require vegan package
+
+## working directory ##
+
+setwd() # set up working directory
+
+## dataset and factors ##
+
+# import dataset and remove unstable substrate (transect level) #
+data<- read.csv('Ribas-Deulofeu et al. 2016_File S2 (Data Sheet)_Benthic composition raw.csv',h=TRUE,row.names='OTUs') # import dataset
+data1<-as.data.frame(data) # conversion as a dataframe
+data1[,'sand']<- NULL    #  delete unstable substrate 'sand'
+data1[,'gravel_small_rubble']<- NULL #  delete unstable substrate 'gravel_small_rubble'
+data1[,'rubble']<- NULL #  delete unstable substrate 'gravel_small_rubble'
+data1<-as.matrix(data1) # conversion as a matrix
+data2<-prop.table(data1,1) # conversion in percentage
+
+# factor: region (transect level) #
+
+fact1<-read.csv('Ribas-Deulofeu et al. 2016_File S4 (Metadata)_Site information.csv',h=T, row.names='X') # import table factors
+attach(fact1) # attach factors 
+
+# convert dataset to site level #
+
+SiteData<- aggregate(data2, by=list(Category=fact1$site), FUN=sum) # sum OTUs percentages per sites
+rownames(SiteData)=SiteData$Category # apply Category (Site) as rownames
+SiteData[,'Category']<- NULL    #  delete 'Category' column as variable 
+
+
+# factor: region (site level) #
+SiteName<- c('Bitou','Chaikou','Chinwan_Inner_Bay', 'Cimei', 'Dabaisha','Dingbaisha',  'Gongguan', 'Gupoyu','Hongchai', 'Houbihu', 'Jialeshuei', 'Keelung_Island','Leidashih', 'Longdon','Longkeng', 'Outlet', 'Pon_Pon_Tan','Sangjiaowan', 'Shihland', 'Siyuping','Tiaoshih',  'Tanzihwan','Wa_En_Tung', 'Wanlitung','Yeliu')
+RegionName<- c('North_Taiwan','Green_Island','Penghu','Penghu','Green_Island','Kenting','Green_Island','Penghu','Kenting','Kenting','Kenting','North_Taiwan','Kenting','North_Taiwan','Kenting','Kenting','Penghu','Kenting','Green_Island','Penghu','Kenting','Kenting','Penghu','Kenting','North_Taiwan')
+fact2<-data.frame(SiteName,RegionName) # regional factor at site level
+
+
+## distance ##
+
+dis1<- vegdist(data2, method='euc') # euclidean distance (site level)
+clus1<-hclust(dis1, method='complete') # cluster complete linkage
+
+## nonmetric Multidimensional Scaling ##         
+
+mds1site <- metaMDS(SiteData, dist='euc', type='n') # nonmetric Multidimensional Scaling analysis 
+plot(mds1site, display='sites', type='none') # plot Nonmetric Multidimensional Scaling
+points(mds1site, 'sites', pch=19, col='yellow',select=fact2$RegionName=='Penghu') # add transects from Penghu
+points(mds1site, 'sites', pch=19, col='green',select=fact2$RegionName=='Green_Island')# add transects from Green Island
+points(mds1site, 'sites', pch=19, col='cyan',select=fact2$RegionName=='North_Taiwan') # add transects from North Taiwan
+points(mds1site, 'sites', pch=19, col='red',select=fact2$RegionName=='Kenting') # add transects from Kenting
+text(mds1site, 'species', cex=0.5) # visualize species names
+ordispider (mds1site, RegionName, col='red') # position centroids
+
+## similarity percentages ##
+
+simper1site<-simper(SiteData, RegionName) # similarity percentages analysis
+simper1site # discriminating species between regions
+
+## dispersion test ## 
+
+mod<-betadisper (dis1,region) # multivariate homogeneity of groups dispersions on untransformed data (site Level)  
+permutest (mod, pairwise=T) # ANOVA like permutation test (see ?permutest)
+TukeyHSD(mod) # pairwise comparison
+boxplot(mod) # visualization of the dispersion
+
+## PERMANOVA ##
+permanovaRegion<-adonis(formula=data2~region/site, data=fact1, permutations=9999, method='euc') # Permutational Multivariate Analysis of Variance using euclidean distances  
+permanovaRegion # permanova results
+
+permanovaLatitude<-adonis(formula=data2~latitude/site, data=fact1, permutations=9999, method='euc') # Permutational Multivariate Analysis of Variance using euclidean distances  
+permanovaLatitude # permanova results 
+
+## ANOSIM ##
+
+anosim1<-anosim(dis1,region, permutations=9999) # analysis of similarities
+anosim1 # results anosim
+p.adjust(anosim1$signif, method = 'bonferroni', 6) # adjustement p-value
+
+# pairwise comparison #
+
+# Penghu - Green Island
+PGH_GI <- data2[c(11:20,36:40,81:85,96:100,111:115,6:10,21:25,31:35,91:95), ] # subset dataset
+fact2 <- fact1[c(11:20,36:40,81:85,96:100,111:115,6:10,21:25,31:35,91:95), ] # subset factors
+dis2<- vegdist(PGH_GI, method="euc") # euclidean distance
+anosim2<-anosim(dis2,fact2$region, permutations=9999) # analysis of similarities
+anosim2 # results anosim
+p.adjust(anosim2$signif, method = 'bonferroni', 6) # adjustement p-value
+
+# Penghu - North Taiwan
+PGH_NTW<- data2[c(11:20,36:40,81:85,96:100,111:115,1:5,56:60,66:70,121:125), ] # subset dataset
+fact3 <- fact1[c(11:20,36:40,81:85,96:100,111:115,1:5,56:60,66:70,121:125),] # subset factors 
+dis3<- vegdist(PGH_NTW, method="euc") # euclidean distance
+anosim3<-anosim(dis3,fact3$region, permutations=9999) # analysis of similarities
+anosim3 # results anosim
+p.adjust(anosim3$signif, method = 'bonferroni', 6) # adjustement p-value
+
+# Penghu - Kenting
+PGH_KTG <- data2[c(11:20,36:40,81:85,96:100,111:115,26:30,41:55,61:65,71:80,86:90,101:110,116:120), ] # subset dataset
+fact4 <- fact1[c(11:20,36:40,81:85,96:100,111:115,26:30,41:55,61:65,71:80,86:90,101:110,116:120), ] # subset factors 
+dis4<- vegdist(PGH_KTG, method="euc") # euclidean distance
+anosim4<-anosim(dis4,fact4$region, permutations=9999) # analysis of similarities
+anosim4 # results anosim
+p.adjust(anosim4$signif, method = 'bonferroni', 6) # adjustement p-value
+
+# North Taiwan - Green Island
+NTW_GI <- data2[c(1:5,56:60,66:70,121:125,6:10,21:25,31:35,91:95), ] # subset dataset
+fact5 <- fact1[c(1:5,56:60,66:70,121:125,6:10,21:25,31:35,91:95), ] # subset factors 
+dis5<- vegdist(NTW_GI, method="euc") # euclidean distance
+anosim5<-anosim(dis5,fact5$region, permutations=9999) # analysis of similarities
+anosim5 # results anosim
+p.adjust(anosim5$signif, method = 'bonferroni', 6) # adjustement p-value
+
+# Green Island - Kenting
+GI_KTG <- data2[c(6:10,21:25,31:35,91:95,26:30,41:55,61:65,71:80,86:90,101:110,116:120), ] # subset dataset
+fact6 <- fact1[c(6:10,21:25,31:35,91:95,26:30,41:55,61:65,71:80,86:90,101:110,116:120), ] # subset factors
+dis6<- vegdist(GI_KTG, method="euc") # euclidean distance
+anosim6<-anosim(dis6,fact6$region, permutations=9999) # analysis of similarities
+anosim6 # results anosim
+p.adjust(anosim6$signif, method = 'bonferroni', 6) # adjustement p-value
+
+# North Taiwan - Kenting
+NTW_KTG <- data2[c(1:5,56:60,66:70,121:125,26:30,41:55,61:65,71:80,86:90,101:110,116:120), ] # subset dataset
+fact7 <- fact1[c(1:5,56:60,66:70,121:125,26:30,41:55,61:65,71:80,86:90,101:110,116:120), ] # subset factors 
+dis7<- vegdist(NTW_KTG, method="euc") # euclidean distance
+anosim7<-anosim(dis7,fact7$region, permutations=9999) # analysis of similarities
+anosim7 # results anosim
+p.adjust(anosim7$signif, method = 'bonferroni', 6) # adjustement p-value
+
+## nested ANOVA ##
+
+#major categories level dataset
+dataANOVA<- read.csv('Ribas-Deulofeu et al. 2016_File S3 (Data Sheet)_Major category cover raw.csv',h=TRUE,row.names='Maj_Cat') # import dataset
+
+#nested anova
+#TU
+AnovaTU<- aov(dataANOVA$TU~region/site)
+summary(AnovaTU)
+
+#HC
+AnovaHC<- aov(dataANOVA$HC~region/site)
+summary(AnovaHC)
+
+#MA
+AnovaMA<- aov(dataANOVA$MA~region/site)
+summary(AnovaMA)
+
+#SF
+AnovaSF<- aov(dataANOVA$SF~region/site)
+summary(AnovaSF)
+
+#ECA
+AnovaECA<- aov(dataANOVA$ECA~region/site)
+summary(AnovaECA)
+
+#ZO
+AnovaZO<- aov(dataANOVA$ZO~region/site)
+summary(AnovaZO)
+
+#SP
+AnovaSP<- aov(dataANOVA$SP~region/site)
+summary(AnovaSP)
+
+#AN
+AnovaAN<- aov(dataANOVA$AN~region/site)
+summary(AnovaAN)
+
+#AS
+AnovaAS<- aov(dataANOVA$AS~region/site)
+summary(AnovaAS)
+
+#AT
+AnovaAT<- aov(dataANOVA$AT~region/site)
+summary(AnovaAT)
+
+#OL
+AnovaOL<- aov(dataANOVA$OL~region/site)
+summary(AnovaOL)
+
+#UN
+AnovaUN<- aov(dataANOVA$UN~region/site)
+summary(AnovaUN)
+
+#BS
+AnovaBS<- aov(dataANOVA$BS~region/site)
+summary(AnovaBS)
+
+
+### Supplementary Figure S7 ###
+
+mds1transect<- metaMDS(data2, dist='euc', type='n') # nonmetric Multidimensional Scaling analysis
+plot(mds1transect, display='sites', type='none') # plot Nonmetric Multidimensional Scaling
+points(mds1transect, 'sites', pch=19, col='yellow',select=region=='Penghu') # add transects from Penghu
+points(mds1transect, 'sites', pch=19, col='green',select=region=='Green_Island')# add transects from Green Island
+points(mds1transect, 'sites', pch=19, col='cyan',select=region=='North_Taiwan') # add transects from North Taiwan
+points(mds1transect, 'sites', pch=19, col='red',select=region=='Kenting') # add transects from Kenting
+text(mds1transect, 'species', cex=0.5) # visualize species names
+ordicluster (mds1transect, clus1, col='grey') # overlay cluster
+ordispider (mds1transect, region, col='red') # position centroids
+
+## similarity percentages ##
+
+simper2transect<-simper(data2, region) # similarity percentages analysis
+simper2transect # discriminating species between regions
