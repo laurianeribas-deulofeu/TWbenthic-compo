@@ -1,5 +1,5 @@
 
-<h1>Data from: Structure of Benthic Communities along the Taiwan Latitudinal Gradient </h1>
+<h1>Data from: Structure of benthic communities along the Taiwan latitudinal gradient </h1>
 <em>Lauriane Ribas-Deulofeu<sup>1,2,3</sup>, Vianney Denis<sup>3,4</sup>, Stéphane De Palmas<sup>1,2,3</sup>,Chao-Yang Kuo<sup>5</sup>, Hernyi Justin Hsieh<sup>6</sup>, Chaolun and Chaolun Allen Chen<sup>2,3,4</sup>*</em>
 
 <sup>1</sup>Biodiversity Research Center, Academia Sinica, Taipei, Taiwan,<br>
